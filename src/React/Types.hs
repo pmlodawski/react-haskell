@@ -20,8 +20,6 @@ import React.Imports
 import React.Registry
 
 
-instance Show JSString where
-    show = fromJSString
 
 type JSON = Aeson.Value
 
@@ -87,7 +85,7 @@ data ReactNode sig
 
     -- | A (JavaScript) React class. Also corresponds to
     -- 'ReactComponentElement'.
-    | forall props. ToJSRef props =>
+    | forall props. ToJSVal props =>
         ForeignClass (ImportedClass props sig) props (ReactNode sig)
 
     -- | A local React Node. No direct correspondence in the formal type

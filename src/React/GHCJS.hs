@@ -10,26 +10,25 @@ module React.GHCJS
     , Document
     , Element
     , JSAny
-    , documentGetElementById
+    , getElementById
 
     -- * GHCJS stubs
 #ifdef __GHCJS__
     , module X
 #else
     , ForeignRetention(..)
-    , JSRef(..)
-    , JSFun
+    , JSVal(..)
     , JSArray
     , JSString
     , FromJSString(..)
     , ToJSString(..)
-    , FromJSRef(..)
-    , ToJSRef(..)
-    , castRef
-    , newObj
+    , FromJSVal(..)
+    , ToJSVal(..)
+    , castVal
+    , create
     , setProp
-    , eqRef
-    , toArray
+    , eqVal
+    , toJSArray
     , setProp
     , syncCallback1
     , syncCallback2
@@ -44,22 +43,23 @@ import Data.Text (Text)
 
 #ifdef __GHCJS__
 
-import GHCJS.Foreign as X
+import GHCJS.Foreign.Callback as X (syncCallback1, syncCallback2, OnBlocked(..))
 import GHCJS.Marshal as X
 import GHCJS.Types as X
 import GHCJS.DOM (currentDocument)
+import GHCJS.DOM.Document (getElementById)
 import GHCJS.DOM.Types (Document, Element)
-import GHCJS.DOM.Document (documentGetElementById)
+import GHCJS.Prim as X
+import JavaScript.Object as X (create, setProp, Object)
 
 #else
 
 data Document
 data Element
-data JSRef a = JSRef
+data JSVal a = JSVal
 data JSString_
-type JSFun = JSRef
-type JSArray = JSRef
-type JSString = JSRef JSString_
+type JSArray = JSVal
+type JSString = JSVal JSString_
 
 class ToJSString a where
     toJSString :: a -> JSString
@@ -67,20 +67,20 @@ class ToJSString a where
 class FromJSString a where
     fromJSString :: JSString -> a
 
-class FromJSRef a where
-    fromJSRef :: JSRef a -> IO (Maybe a)
+class FromJSVal a where
+    fromJSVal :: JSVal a -> IO (Maybe a)
 
-class ToJSRef a where
-    toJSRef :: a -> IO (JSRef a)
+class ToJSVal a where
+    toJSVal :: a -> IO (JSVal a)
 
-instance FromJSRef Aeson.Value
-instance FromJSRef Int
-instance (FromJSRef a, FromJSRef b) => FromJSRef (a, b)
-instance FromJSRef (JSRef ())
-instance ToJSRef Int
-instance ToJSRef Aeson.Value
-instance ToJSRef a => ToJSRef (Maybe a)
-instance ToJSRef (JSRef a)
+instance FromJSVal Aeson.Value
+instance FromJSVal Int
+instance (FromJSVal a, FromJSVal b) => FromJSVal (a, b)
+instance FromJSVal (JSVal ())
+instance ToJSVal Int
+instance ToJSVal Aeson.Value
+instance ToJSVal a => ToJSVal (Maybe a)
+instance ToJSVal (JSVal a)
 instance FromJSString String
 instance FromJSString Text
 instance FromJSString JSString
@@ -92,43 +92,40 @@ instance IsString JSString
 currentDocument :: IO (Maybe Document)
 currentDocument = undefined
 
-documentGetElementById ::
+getElementById ::
     -- (IsDocument self, ToJSString elementId) =>
     self -> elementId -> IO (Maybe Element)
-documentGetElementById = undefined
+getElementById = undefined
 
-castRef :: JSRef a -> JSRef b
-castRef _ = JSRef
-
-newObj :: IO (JSRef a)
-newObj = undefined
+create :: IO (JSVal a)
+create = undefined
 
 data ForeignRetention
     = NeverRetain
     | AlwaysRetain
-    | DomRetain (forall a. JSRef a)
+    | DomRetain (forall a. JSVal a)
 
-eqRef :: JSRef a -> JSRef a -> Bool
-eqRef = undefined
+eqVal :: JSVal a -> JSVal a -> Bool
+eqVal = undefined
 
-toArray :: [JSRef a] -> IO (JSArray a)
-toArray = undefined
+toJSArray :: [JSVal a] -> IO (JSArray a)
+toJSArray = undefined
 
-setProp :: ToJSString a => a -> JSRef b -> JSRef c -> IO ()
+setProp :: ToJSString a => a -> JSVal b -> JSVal c -> IO ()
 setProp = undefined
 
 syncCallback1 :: ForeignRetention
               -> Bool
-              -> (JSRef a -> IO b)
-              -> IO (JSFun (JSRef a -> IO b))
+              -> (JSVal a -> IO b)
+              -> IO (JSVal (JSVal a -> IO b))
 syncCallback1 = undefined
 
 syncCallback2 :: ForeignRetention
               -> Bool
-              -> (JSRef a -> JSRef b -> IO c)
-              -> IO (JSFun (JSRef a -> JSRef b -> IO c))
+              -> (JSVal a -> JSVal b -> IO c)
+              -> IO (JSVal (JSVal a -> JSVal b -> IO c))
 syncCallback2 = undefined
 
 #endif
 
-type JSAny = JSRef ()
+type JSAny = JSVal

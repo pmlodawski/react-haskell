@@ -15,8 +15,7 @@ import React.GHCJS
 import React.Imports
 
 
-data FPropType_
-type FPropType = JSRef FPropType_
+type FPropType = JSVal
 
 #ifdef __GHCJS__
 foreign import javascript unsafe "React.PropTypes.bool"
@@ -89,10 +88,9 @@ class PropTypable a where
     propType :: a -> PropType
 
 
-instance PropTypable (JSRef ()) where
+instance PropTypable JSVal where
     -- TOOD(joel) instanceOf this
     propType _ = PropObject IsRequired
 
 instance PropTypable JSString where
     propType _ = PropString IsRequired
-

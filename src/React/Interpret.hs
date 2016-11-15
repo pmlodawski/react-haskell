@@ -7,7 +7,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
 import Data.List
 import Data.Maybe
-import Data.Text (Text)
+import Data.Text (Text, unpack)
 
 import React.GHCJS
 import React.Imports
@@ -16,7 +16,7 @@ import React.Types
 
 -- This module handles the translation of 'ReactNode's into javascript. The
 -- difficulty is in handling the complexity that arises from keeping state in
--- Haskell rather than in JS. This means we can't just blindly call ToJSRef
+-- Haskell rather than in JS. This means we can't just blindly call ToJSVal
 -- (which would be very convenient).
 --
 -- The raison d'etre of this module is 'reactNodeToJSAny', which delegates to
@@ -41,20 +41,20 @@ reactNodeToJSAny sigHandler componentId (DomElement elem)       =
 -- with our createClass machinery, so they expect to have a componentId, but we
 -- give them none...
 -- reactNodeToJSAny _ _ (ForeignElement elem)                   =
---     return $ castRef elem
+--     return $ castVal elem
 
 reactNodeToJSAny sigHandler componentId (ForeignClass cls props children) = do
     -- pass the handler and component id on to the children - their events will
     -- just be handled by the parent class.
     children' <- reactNodeToJSAny sigHandler componentId children
-    props' <- toJSRef props
+    props' <- toJSVal props
     js_foreignParent cls props' children'
 
 reactNodeToJSAny sigHandler _           (NodeText str)          =
-    castRef <$> toJSRef (toJSString str)
+    toJSVal (toJSString $ unpack str)
 reactNodeToJSAny sigHandler componentId (NodeSequence seq)      = do
     jsNodes <- mapM (reactNodeToJSAny sigHandler componentId) seq
-    castRef <$> toArray jsNodes
+    toJSArray jsNodes
 reactNodeToJSAny sigHandler componentId (LocalNode f node)      =
     -- Convert from 'sig -> IO ()' to 'insig -> IO ()'
     let sigHandler' = sigHandler . f
@@ -94,8 +94,8 @@ makeHandler componentId obj (handle, evtTy) = do
 
 -- | Make a javascript callback to synchronously execute the handler
 handlerToJs :: (RawEvent -> Maybe (IO ()))
-            -> IO (JSFun (RawEvent -> IO ()))
-handlerToJs handle = syncCallback1 AlwaysRetain True $
+            -> IO JSVal
+handlerToJs handle = syncCallback1 ThrowWouldBlock $
     fromMaybe (return ()) . handle
 
 
@@ -119,26 +119,26 @@ separateAttrs attrHandlers = (map makeA as, map makeH hs) where
     makeH (Handler h) = h
 
 
-attrHandlerToJSAny :: (sig -> IO ()) -> Int -> [AttrOrHandler sig] -> IO JSAny
+attrHandlerToJSAny :: (sig -> IO ()) -> Int -> [AttrOrHandler sig] -> IO Object
 attrHandlerToJSAny sigHandler componentId attrHandlers = do
     let (attrs, handlers) = separateAttrs attrHandlers
-    starter <- castRef <$> toJSRef (attrsToJson attrs)
+    starter <- toJSVal (attrsToJson attrs)
 
     forM_ handlers $ makeHandler componentId starter . unHandler sigHandler
     return starter
 
 
 -- Helper for componentToJSAny and domToJSAny
-setMaybeKey :: Maybe JSString -> JSAny -> IO ()
+setMaybeKey :: Maybe JSString -> Object -> IO ()
 setMaybeKey maybeKey attrsObj = when (isJust maybeKey) $ do
     let Just key = maybeKey
     setProp' "key" key attrsObj
 
 
-setProp' :: ToJSRef a => String -> a -> JSAny -> IO ()
+setProp' :: ToJSVal a => JSString -> a -> Object -> IO ()
 setProp' key prop obj = do
-    propRef <- toJSRef prop
-    setProp key propRef obj
+    propVal <- toJSVal prop
+    setProp key propVal obj
 
 
 -- foreignElementToJSAny :: Int -> IO JSAny -> IO JSAny
@@ -172,7 +172,7 @@ componentToJSAny
 
         setHandler registry sigHandler' componentId
 
-        attrsObj <- newObj
+        attrsObj <- create
 
         setMaybeKey maybeKey attrsObj
         setProp' "ref" ref attrsObj
@@ -181,7 +181,7 @@ componentToJSAny
         let ty' = classForeign ty
         children' <- reactNodeToJSAny sigHandler' componentId children
 
-        castRef <$> js_react_createElement_Class ty' attrsObj children'
+        js_react_createElement_Class ty' attrsObj children'
 
 
 domToJSAny :: (sig -> IO ()) -> Int -> ReactDOMElement sig -> IO JSAny
@@ -193,4 +193,4 @@ domToJSAny sigHandler componentId (ReactDOMElement ty props children maybeKey re
 
     children' <- reactNodeToJSAny sigHandler componentId children
 
-    castRef <$> js_react_createElement_DOM ty attrsObj children'
+    js_react_createElement_DOM ty attrsObj children'

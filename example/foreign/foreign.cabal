@@ -22,6 +22,6 @@ executable foreign
   build-depends:
     base >= 4.7 && < 5,
     react-haskell,
-    void == 0.7
+    void
   -- hs-source-dirs:
   default-language:    Haskell2010
